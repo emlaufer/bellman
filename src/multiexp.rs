@@ -55,7 +55,11 @@ impl<G: PrimeCurveAffine> Source<G> for (Arc<Vec<G>>, usize) {
         if self.0.len() <= self.1 {
             return Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
-                "expected more bases from source",
+                format!(
+                    "expected more bases from source {} {}",
+                    self.0.len(),
+                    self.1
+                ),
             )
             .into());
         }
@@ -74,7 +78,11 @@ impl<G: PrimeCurveAffine> Source<G> for (Arc<Vec<G>>, usize) {
         if self.0.len() <= self.1 {
             return Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
-                "expected more bases from source",
+                format!(
+                    "expected more bases from source {} {}",
+                    self.0.len(),
+                    self.1
+                ),
             )
             .into());
         }

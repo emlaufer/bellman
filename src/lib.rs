@@ -141,8 +141,10 @@ pub mod domain;
 pub mod gadgets;
 #[cfg(feature = "groth16")]
 pub mod groth16;
+pub mod mirage;
 pub mod multicore;
 pub mod multiexp;
+pub mod random;
 
 use ff::PrimeField;
 
@@ -319,6 +321,10 @@ pub enum SynthesisError {
     IoError(io::Error),
     /// During CRS generation, we observed an unconstrained auxiliary variable
     UnconstrainedVariable,
+    /// During synthesis, we ask for a random coin during the wrong phase...
+    LateRandomCoin,
+    /// During synthesis, tries to get coin value that isn't a coin
+    NotACoin,
 }
 
 impl From<io::Error> for SynthesisError {
@@ -341,6 +347,8 @@ impl fmt::Display for SynthesisError {
             SynthesisError::UnexpectedIdentity => "encountered an identity element in the CRS",
             SynthesisError::IoError(_) => "encountered an I/O error",
             SynthesisError::UnconstrainedVariable => "auxiliary variable was unconstrained",
+            SynthesisError::LateRandomCoin => "late random coin",
+            SynthesisError::NotACoin => "not a coin",
         };
         if let SynthesisError::IoError(ref e) = *self {
             write!(f, "I/O error: ")?;
