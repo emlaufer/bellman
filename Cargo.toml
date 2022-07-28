@@ -29,6 +29,7 @@ log = { version = "0.4", optional = true }
 num_cpus = { version = "1", optional = true }
 rayon = { version = "1.5.1", optional = true }
 sha2 = "0.10"
+rand_chacha = "0.3.1"
 
 [dev-dependencies]
 bls12_381 = "0.7"

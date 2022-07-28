@@ -5,6 +5,7 @@ use std::sync::Arc;
 use ff::{Field, PrimeField, PrimeFieldBits};
 use group::{prime::PrimeCurveAffine, Curve};
 use pairing::Engine;
+use rand_chacha::ChaChaRng;
 use sha2::{Digest, Sha256};
 
 use super::{ParameterSource, Proof};
@@ -110,10 +111,13 @@ pub fn compute_coin<E: Engine, S: PrimeField>(inputs: &[S], pid: E::G1Affine, nu
     let sha_input = [&inputs_bits, pid.to_bytes().as_ref(), &num_bits[..]].concat();
     let mut hasher = Sha256::new();
     hasher.update(sha_input);
-    let res = hasher.finalize();
+    let seed = hasher.finalize();
+    use rand_core::SeedableRng;
+    let mut rng = ChaChaRng::from_seed(seed.try_into().unwrap());
     // TODO: gross
     //let coin =
-    from_u8s(&res).unwrap()
+    //from_u8s(&res).unwrap()
+    S::random(&mut rng)
 }
 
 fn from_u8s<F: PrimeField>(arr: &[u8]) -> Option<F> {
