@@ -469,16 +469,16 @@ impl<F: ff::PrimeField> RandomCircuit<F> for &SingleRand<F> {
     fn synthesize<CS: RandomConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
         let a = cs.alloc(|| "a", || Ok(self.a))?;
         let b = cs.alloc(|| "b", || Ok(self.b))?;
-        let coin = cs.alloc_random_coin(|| "alpha")?;
+        let (coin_var, coin) = cs.alloc_random_coin(|| "alpha")?;
         //cs.alloc_dependent(|| "za", coin, |val| Ok(val - self.a));
         //cs.alloc_dependent(|| "zb", coin, |val| Ok(val - self.b));
         //let c = cs.alloc(|| "c", || Ok(self.c.unwrap()))?;
 
         cs.enforce(
             || "cs",
-            |z| z - coin - a,
+            |z| z - coin_var - a,
             |z| z + CS::one(),
-            |z| z - coin - b,
+            |z| z - coin_var - b,
         );
         Ok(())
     }
@@ -528,7 +528,7 @@ impl<F: ff::PrimeField> RandomCircuit<F> for &PermutationWithCoin<F> {
             b_vars.push(cs.alloc(|| format!("{}_{}", "b", i), || Ok(*b))?);
         }
 
-        let coin = cs.alloc_random_coin(|| "alpha")?;
+        let (coin_var, coin) = cs.alloc_random_coin(|| "alpha")?;
 
         let mut last_acc_var = CS::one();
         let mut last_acc_val = F::one();
@@ -536,8 +536,7 @@ impl<F: ff::PrimeField> RandomCircuit<F> for &PermutationWithCoin<F> {
         for (i, a) in self.a_vals.iter().enumerate() {
             let this_acc_var = cs.alloc_dependent(
                 || format!("{}_{}", "a_inds", i),
-                coin,
-                |coin| {
+                || {
                     this_acc_val = last_acc_val * (coin - a);
                     Ok(this_acc_val)
                 },
@@ -546,7 +545,7 @@ impl<F: ff::PrimeField> RandomCircuit<F> for &PermutationWithCoin<F> {
                 || "cs",
                 // notice the zero coefficient on the B term
                 |z| z + last_acc_var,
-                |z| z + coin - a_vars[i],
+                |z| z + coin_var - a_vars[i],
                 |z| z + this_acc_var,
             );
             last_acc_var = this_acc_var;
@@ -560,8 +559,7 @@ impl<F: ff::PrimeField> RandomCircuit<F> for &PermutationWithCoin<F> {
         for (i, b) in self.b_vals.iter().enumerate() {
             let this_acc_var = cs.alloc_dependent(
                 || format!("{}_{}", "b_inds", i),
-                coin,
-                |coin| {
+                || {
                     this_acc_val = last_acc_val * (coin - b);
                     Ok(this_acc_val)
                 },
@@ -570,7 +568,7 @@ impl<F: ff::PrimeField> RandomCircuit<F> for &PermutationWithCoin<F> {
                 || "cs",
                 // notice the zero coefficient on the B term
                 |z| z + last_acc_var,
-                |z| z + coin - b_vars[i],
+                |z| z + coin_var - b_vars[i],
                 |z| z + this_acc_var,
             );
             last_acc_var = this_acc_var;

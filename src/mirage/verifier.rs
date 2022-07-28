@@ -19,6 +19,7 @@ pub fn prepare_verifying_key<E: MultiMillerLoop>(vk: &VerifyingKey<E>) -> Prepar
         neg_delta_g2: delta.into(),
         neg_deltap_g2: deltap.into(),
         ic: vk.ic.clone(),
+        num_coins: vk.num_coins,
     }
 }
 
@@ -27,17 +28,18 @@ pub fn verify_proof<'a, E: MultiMillerLoop>(
     proof: &Proof<E>,
     public_inputs: &[E::Fr],
 ) -> Result<(), VerificationError> {
-    if (public_inputs.len() + proof.coins.len() + 1) != pvk.ic.len() {
+    if (public_inputs.len() + pvk.num_coins + 1) != pvk.ic.len() {
         println!(
             "got {} {}",
-            public_inputs.len() + proof.coins.len() + 1,
+            public_inputs.len() + pvk.num_coins + 1,
             pvk.ic.len()
         );
         return Err(VerificationError::InvalidVerifyingKey);
     }
 
-    // check public coins
-    for (i, c) in proof.coins.iter().enumerate() {
+    let mut all_inputs = public_inputs.to_vec();
+    // re-generate proof coins
+    for i in 0..pvk.num_coins {
         use ff::Field;
         // we use 1 when computing coins... so add it back...
         let coin = super::compute_coin::<E, E::Fr>(
@@ -45,12 +47,13 @@ pub fn verify_proof<'a, E: MultiMillerLoop>(
             proof.d,
             i,
         );
-        assert_eq!(coin, *c);
+        all_inputs.push(coin);
+        //assert_eq!(coin, *c);
     }
 
     let mut acc = pvk.ic[0].to_curve();
 
-    let all_inputs = [public_inputs, &proof.coins].concat();
+    //let all_inputs = [public_inputs, &proof.coins].concat();
 
     for (i, b) in all_inputs.iter().zip(pvk.ic.iter().skip(1)) {
         AddAssign::<&E::G1>::add_assign(&mut acc, &(*b * i));

@@ -178,7 +178,10 @@ impl<Scalar: PrimeField> ConstraintSystem<Scalar> for KeypairAssembly<Scalar> {
 }
 
 impl<Scalar: PrimeField> RandomConstraintSystem<Scalar> for KeypairAssembly<Scalar> {
-    fn alloc_random_coin<A, AR>(&mut self, annotation: A) -> Result<Variable, SynthesisError>
+    fn alloc_random_coin<A, AR>(
+        &mut self,
+        annotation: A,
+    ) -> Result<(Variable, Scalar), SynthesisError>
     where
         A: FnOnce() -> AR,
         AR: Into<String>,
@@ -196,17 +199,12 @@ impl<Scalar: PrimeField> RandomConstraintSystem<Scalar> for KeypairAssembly<Scal
         self.bt_inputs.push(vec![]);
         self.ct_inputs.push(vec![]);
 
-        Ok(Variable(Index::Input(index)))
+        Ok((Variable(Index::Input(index)), Scalar::one()))
     }
 
-    fn alloc_dependent<F, A, AR>(
-        &mut self,
-        _: A,
-        _: Variable,
-        _: F,
-    ) -> Result<Variable, SynthesisError>
+    fn alloc_dependent<F, A, AR>(&mut self, _: A, _: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce(Scalar) -> Result<Scalar, SynthesisError>,
+        F: FnOnce() -> Result<Scalar, SynthesisError>,
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
@@ -604,6 +602,7 @@ where
         deltap_g1: (g1 * deltap).to_affine(),
         deltap_g2: (g2 * deltap).to_affine(),
         ic,
+        num_coins: assembly.coin_inds.len(),
     };
 
     Ok(Parameters {

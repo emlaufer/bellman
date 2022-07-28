@@ -245,7 +245,7 @@ impl<E: Engine, S: PrimeField> ConstraintSystem<S> for ProvingAssignment<'_, E, 
 }
 
 impl<E: Engine, S: PrimeField> RandomConstraintSystem<S> for ProvingAssignment<'_, E, S> {
-    fn alloc_random_coin<A, AR>(&mut self, annotation: A) -> Result<Variable, SynthesisError>
+    fn alloc_random_coin<A, AR>(&mut self, annotation: A) -> Result<(Variable, S), SynthesisError>
     where
         A: FnOnce() -> AR,
         AR: Into<String>,
@@ -265,32 +265,19 @@ impl<E: Engine, S: PrimeField> RandomConstraintSystem<S> for ProvingAssignment<'
         self.coin_inds.push(self.input_assignment.len() - 1);
         self.b_input_density.add_element();
 
-        Ok(Variable(Index::Input(self.input_assignment.len() - 1)))
+        Ok((
+            Variable(Index::Input(self.input_assignment.len() - 1)),
+            coin,
+        ))
     }
 
-    fn alloc_dependent<F, A, AR>(
-        &mut self,
-        a: A,
-        v: Variable,
-        f: F,
-    ) -> Result<Variable, SynthesisError>
+    fn alloc_dependent<F, A, AR>(&mut self, a: A, f: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce(S) -> Result<S, SynthesisError>,
+        F: FnOnce() -> Result<S, SynthesisError>,
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
-        let coin_value = match v {
-            Variable(Index::Input(i)) => {
-                if !self.coin_inds.contains(&i) {
-                    Err(SynthesisError::NotACoin)
-                } else {
-                    Ok(self.input_assignment[i])
-                }
-            }
-            _ => Err(SynthesisError::NotACoin),
-        }?;
-
-        let res = f(coin_value)?;
+        let res = f()?;
         let res2 = res.clone();
         self.aux_assignment.push(res);
         self.rand_aux_assignment.push(res2);
@@ -337,6 +324,7 @@ where
     let vk = params.get_vk(0)?;
     let j = params.get_j(0).unwrap();
 
+    // TODO: gross....
     let get_pid = |nonrand: &Vec<<E as Engine>::Fr>, numnonrand: usize| {
         let mut g_d = vk.delta_g1 * _t;
         let worker = Worker::new();
@@ -380,12 +368,12 @@ where
 
     circuit.synthesize(&mut prover)?;
 
-    let coins = prover
-        .coin_inds
-        .iter()
-        .map(|i| prover.input_assignment[*i])
-        .collect();
-    println!("Got coins {:?}", coins);
+    //let coins = prover
+    //    .coin_inds
+    //    .iter()
+    //    .map(|i| prover.input_assignment[*i])
+    //    .collect();
+    //println!("Got coins {:?}", coins);
 
     for i in 0..prover.input_assignment.len() {
         prover.enforce(|| "", |lc| lc + Variable(Index::Input(i)), |lc| lc, |lc| lc);
@@ -566,6 +554,6 @@ where
         b: g_b.to_affine(),
         c: g_c.to_affine(),
         d: g_d.to_affine(),
-        coins,
+        //coins,
     })
 }

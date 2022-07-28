@@ -16,7 +16,10 @@ pub trait RandomCircuit<Scalar: PrimeField> {
 /// Represents a constraint system which can have new variables
 /// allocated and constrains between them formed.
 pub trait RandomConstraintSystem<Scalar: PrimeField>: Sized + ConstraintSystem<Scalar> {
-    fn alloc_random_coin<A, AR>(&mut self, annotation: A) -> Result<Variable, SynthesisError>
+    fn alloc_random_coin<A, AR>(
+        &mut self,
+        annotation: A,
+    ) -> Result<(Variable, Scalar), SynthesisError>
     where
         A: FnOnce() -> AR,
         AR: Into<String>;
@@ -24,11 +27,10 @@ pub trait RandomConstraintSystem<Scalar: PrimeField>: Sized + ConstraintSystem<S
     fn alloc_dependent<F, A, AR>(
         &mut self,
         annotation: A,
-        variable: Variable,
         f: F,
     ) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce(Scalar) -> Result<Scalar, SynthesisError>,
+        F: FnOnce() -> Result<Scalar, SynthesisError>,
         A: FnOnce() -> AR,
         AR: Into<String>;
 }

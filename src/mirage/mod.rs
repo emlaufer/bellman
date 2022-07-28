@@ -29,18 +29,14 @@ pub struct Proof<E: Engine> {
     pub b: E::G2Affine,
     pub c: E::G1Affine,
     pub d: E::G1Affine,
-
     // Coins that were used in this proof...
-    pub coins: Vec<E::Fr>,
+    //pub coins: Vec<E::Fr>,
 }
 
 impl<E: Engine> PartialEq for Proof<E> {
     fn eq(&self, other: &Self) -> bool {
-        self.a == other.a
-            && self.b == other.b
-            && self.c == other.c
-            && self.d == other.d
-            && self.coins == other.coins
+        self.a == other.a && self.b == other.b && self.c == other.c && self.d == other.d
+        //&& self.coins == other.coins
     }
 }
 
@@ -51,11 +47,12 @@ impl<E: Engine> Proof<E> {
         writer.write_all(self.c.to_bytes().as_ref())?;
         writer.write_all(self.d.to_bytes().as_ref())?;
 
-        writer.write_u32::<BigEndian>(self.coins.len() as u32)?;
-        use ff::PrimeField;
-        for coin in &self.coins {
-            writer.write_all(coin.to_repr().as_ref())?;
-        }
+        //writer.write_u32::<BigEndian>(self.coins.len() as u32)?;
+        //use ff::PrimeField;
+        //for coin in &self.coins {
+        //    println!("size of coin: {:?}", coin.to_repr().as_ref().len());
+        //    writer.write_all(coin.to_repr().as_ref())?;
+        //}
 
         Ok(())
     }
@@ -112,21 +109,21 @@ impl<E: Engine> Proof<E> {
         let c = read_g1(&mut reader)?;
         let d = read_g1(&mut reader)?;
 
-        let coin_len = reader.read_u32::<BigEndian>()?;
-        let mut coins = vec![];
-        use ff::PrimeField;
-        for _ in 0..coin_len {
-            let mut coin_repr = <E::Fr as PrimeField>::Repr::default();
-            reader.read_exact(coin_repr.as_mut())?;
-            let coin = <E::Fr as PrimeField>::from_repr(coin_repr);
-            if coin.is_some().unwrap_u8() == 1 {
-                coins.push(coin.unwrap());
-            } else {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid coin"));
-            }
-        }
+        //let coin_len = reader.read_u32::<BigEndian>()?;
+        //let mut coins = vec![];
+        //use ff::PrimeField;
+        //for _ in 0..coin_len {
+        //    let mut coin_repr = <E::Fr as PrimeField>::Repr::default();
+        //    reader.read_exact(coin_repr.as_mut())?;
+        //    let coin = <E::Fr as PrimeField>::from_repr(coin_repr);
+        //    if coin.is_some().unwrap_u8() == 1 {
+        //        coins.push(coin.unwrap());
+        //    } else {
+        //        return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid coin"));
+        //    }
+        //}
 
-        Ok(Proof { a, b, c, d, coins })
+        Ok(Proof { a, b, c, d })
     }
 }
 
@@ -159,6 +156,8 @@ pub struct VerifyingKey<E: Engine> {
     // this is the same size as the number of inputs, and never contains points
     // at infinity.
     pub ic: Vec<E::G1Affine>,
+
+    pub num_coins: usize,
 }
 
 impl<E: Engine> PartialEq for VerifyingKey<E> {
@@ -172,6 +171,7 @@ impl<E: Engine> PartialEq for VerifyingKey<E> {
             && self.deltap_g1 == other.deltap_g1
             && self.deltap_g2 == other.deltap_g2
             && self.ic == other.ic
+            && self.num_coins == other.num_coins
     }
 }
 
@@ -189,6 +189,7 @@ impl<E: Engine> VerifyingKey<E> {
         for ic in &self.ic {
             writer.write_all(ic.to_uncompressed().as_ref())?;
         }
+        writer.write_u32::<BigEndian>(self.num_coins as u32)?;
 
         Ok(())
     }
@@ -245,6 +246,7 @@ impl<E: Engine> VerifyingKey<E> {
 
             ic.push(g1);
         }
+        let num_coins = reader.read_u32::<BigEndian>()? as usize;
 
         Ok(VerifyingKey {
             alpha_g1,
@@ -256,6 +258,7 @@ impl<E: Engine> VerifyingKey<E> {
             deltap_g1,
             deltap_g2,
             ic,
+            num_coins,
         })
     }
 }
@@ -470,6 +473,8 @@ pub struct PreparedVerifyingKey<E: MultiMillerLoop> {
     neg_deltap_g2: E::G2Prepared,
     /// Copy of IC from `VerifiyingKey`.
     ic: Vec<E::G1Affine>,
+    /// num coins
+    num_coins: usize,
 }
 
 pub trait ParameterSource<E: Engine> {
@@ -595,7 +600,7 @@ mod test_with_bls12_381 {
             let mut v = vec![];
 
             params.write(&mut v).unwrap();
-            assert_eq!(v.len(), 2136);
+            assert_eq!(v.len(), 2432);
 
             let de_params = Parameters::read(&v[..], true).unwrap();
             assert!(params == de_params);
@@ -625,7 +630,8 @@ mod test_with_bls12_381 {
             let mut v = vec![];
             proof.write(&mut v).unwrap();
 
-            assert_eq!(v.len(), 192);
+            // 48 * 3 + 96 + 4 for num coins = 240
+            assert_eq!(v.len(), 240);
 
             let de_proof = Proof::read(&v[..]).unwrap();
             assert!(proof == de_proof);
